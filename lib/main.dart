@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 
 void main() {
   runApp(MyApp());
@@ -69,6 +70,50 @@ class _MyHomePageState extends State<MyHomePage> {
       _ocr(pickedFile.path);
     }
   }
+
+  void _ocr_new(String localPath) async {
+  if (selectList.isEmpty) {
+    print("Please select language");
+    return;
+  }
+
+  // Check if the path is a local asset
+  if (localPath.startsWith("assets/")) {
+    // Load asset data and write to a temporary file
+    try {
+      Directory tempDir = await getTemporaryDirectory();
+      Uint8List bytes = (await rootBundle.load(localPath)).buffer.asUint8List();
+      String tempFilePath = '${tempDir.path}/temp_asset_image.png';
+      File tempFile = File(tempFilePath);
+      await tempFile.writeAsBytes(bytes);
+      localPath = tempFilePath; // Update localPath to the temp file path
+    } catch (e) {
+      print("Error loading asset file: $e");
+      _ocrText = "Error loading asset file.";
+      setState(() {});
+      return;
+    }
+  }
+
+  var langs = selectList.join("+");
+
+  bload = true;
+  setState(() {});
+
+  try {
+    _ocrText =
+        await FlutterTesseractOcr.extractText(localPath, language: langs, args: {
+      "preserve_interword_spaces": "1",
+    });
+    print("OCR Text: $_ocrText");
+  } catch (e) {
+    print("Error during OCR: $e");
+    _ocrText = "Error during OCR processing.";
+  }
+
+  bload = false;
+  setState(() {});
+}
 
   void _ocr(url) async {
     if (selectList.length <= 0) {
@@ -199,7 +244,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     ElevatedButton(
                         onPressed: () {
-                          _ocr(urlEditController.text);
+                          _ocr_new(urlEditController.text);
                         },
                         child: Text("Run")),
                   ],
